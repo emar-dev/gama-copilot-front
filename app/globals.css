@@ -1,26 +1,164 @@
 @import "tailwindcss";
 
+/* Palette : papier légèrement verdi, encre bleu-pétrole, accent émeraude (agents sains)
+   et accent chaud corail (agents infectés) — les deux couleurs d'une simulation. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --canvas: oklch(0.982 0.006 165);
+  --surface: oklch(1 0 0);
+  --sunken: oklch(0.955 0.009 170);
+  --ink: oklch(0.24 0.025 210);
+  --muted: oklch(0.47 0.022 205);
+  --placeholder: oklch(0.56 0.018 205);
+  --line: oklch(0.905 0.012 175);
+  --line-strong: oklch(0.82 0.016 180);
+  --accent: oklch(0.56 0.12 168);
+  --accent-strong: oklch(0.47 0.11 172);
+  --accent-ink: oklch(0.99 0.01 165);
+  --accent-soft: oklch(0.94 0.04 168);
+  --warm: oklch(0.66 0.16 42);
+  --danger: oklch(0.52 0.19 27);
+  --danger-soft: oklch(0.96 0.03 27);
+  --ring: oklch(0.56 0.12 168 / 0.22);
+  --shadow: oklch(0.3 0.04 210 / 0.16);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --canvas: oklch(0.175 0.016 215);
+    --surface: oklch(0.215 0.018 212);
+    --sunken: oklch(0.255 0.02 210);
+    --ink: oklch(0.95 0.01 170);
+    --muted: oklch(0.74 0.02 195);
+    --placeholder: oklch(0.64 0.018 195);
+    --line: oklch(0.3 0.02 205);
+    --line-strong: oklch(0.4 0.022 200);
+    --accent: oklch(0.79 0.13 166);
+    --accent-strong: oklch(0.71 0.13 168);
+    --accent-ink: oklch(0.18 0.03 190);
+    --accent-soft: oklch(0.3 0.05 172);
+    --warm: oklch(0.76 0.15 48);
+    --danger: oklch(0.74 0.15 25);
+    --danger-soft: oklch(0.3 0.06 25);
+    --ring: oklch(0.79 0.13 166 / 0.25);
+    --shadow: oklch(0.05 0.01 210 / 0.6);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: oklch(0.175 0.016 215);
+  --surface: oklch(0.215 0.018 212);
+  --sunken: oklch(0.255 0.02 210);
+  --ink: oklch(0.95 0.01 170);
+  --muted: oklch(0.74 0.02 195);
+  --placeholder: oklch(0.64 0.018 195);
+  --line: oklch(0.3 0.02 205);
+  --line-strong: oklch(0.4 0.022 200);
+  --accent: oklch(0.79 0.13 166);
+  --accent-strong: oklch(0.71 0.13 168);
+  --accent-ink: oklch(0.18 0.03 190);
+  --accent-soft: oklch(0.3 0.05 172);
+  --warm: oklch(0.76 0.15 48);
+  --danger: oklch(0.74 0.15 25);
+  --danger-soft: oklch(0.3 0.06 25);
+  --ring: oklch(0.79 0.13 166 / 0.25);
+  --shadow: oklch(0.05 0.01 210 / 0.6);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-placeholder: var(--placeholder);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-warm: var(--warm);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scrollbar-color: var(--line-strong) var(--canvas);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  caret-color: var(--accent);
+  accent-color: var(--accent-strong);
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* La bordure du champ porte déjà le focus. */
+input:focus-visible {
+  outline: none;
+}
+
+.theme-icon-moon {
+  display: none;
+}
+[data-theme="dark"] .theme-icon-sun {
+  display: none;
+}
+[data-theme="dark"] .theme-icon-moon {
+  display: block;
+}
+
+/* Dérive lente des agents de la simulation */
+@keyframes sim-drift-1 {
+  to {
+    transform: translate(14px, -10px);
+  }
+}
+@keyframes sim-drift-2 {
+  to {
+    transform: translate(-12px, 12px);
+  }
+}
+@keyframes sim-drift-3 {
+  to {
+    transform: translate(10px, 9px);
+  }
+}
+.sim-drift-1 {
+  animation: sim-drift-1 7s cubic-bezier(0.16, 1, 0.3, 1) infinite alternate;
+}
+.sim-drift-2 {
+  animation: sim-drift-2 9s cubic-bezier(0.16, 1, 0.3, 1) infinite alternate;
+}
+.sim-drift-3 {
+  animation: sim-drift-3 11s cubic-bezier(0.16, 1, 0.3, 1) infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sim-drift-1,
+  .sim-drift-2,
+  .sim-drift-3 {
+    animation: none;
+  }
+  body {
+    transition: none;
+  }
 }
