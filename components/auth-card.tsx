@@ -1,37 +1,47 @@
 "use client";
 
-import { useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
-import { AUTH_IS_MOCK, authenticate, type AuthMode } from "@/lib/auth";
+import { useRouter } from "next/navigation";
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import {
-  ArrowRightIcon,
-  CheckCircleIcon,
-  EyeIcon,
-  EyeOffIcon,
-  GithubIcon,
-  GoogleIcon,
-  InfoIcon,
-  LockIcon,
-  MailIcon,
-  SpinnerIcon,
-  UserIcon,
-} from "./icons";
+  authenticate,
+  consumeOAuthError,
+  getCurrentUser,
+  getOAuthProviders,
+  OAUTH_LABELS,
+  oauthStartUrl,
+  requestPasswordReset,
+  type AuthMode,
+  type OAuthProvider,
+} from "@/lib/auth";
+import {
+  EMAIL_RE,
+  MIN_PASSWORD,
+  Notice,
+  PasswordVisibilityButton,
+  PrimaryButton,
+  TextField,
+} from "./form-controls";
+import { GithubIcon, GoogleIcon, LockIcon, MailIcon, SpinnerIcon, UserIcon } from "./icons";
 
 type Field = "name" | "email" | "password";
 type Errors = Partial<Record<Field, string>>;
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MIN_PASSWORD = 8;
+function emailError(email: string): string | undefined {
+  if (!email.trim()) return "Saisissez votre adresse e-mail.";
+  if (!EMAIL_RE.test(email.trim())) return "Cette adresse e-mail n'est pas valide (ex. nom@labo.fr).";
+  return undefined;
+}
 
 function validate(mode: AuthMode, v: { name: string; email: string; password: string }): Errors {
   const errors: Errors = {};
   if (mode === "register" && v.name.trim().length < 2) {
     errors.name = "Indiquez votre nom (2 caractères minimum).";
   }
-  if (!v.email.trim()) errors.email = "Saisissez votre adresse e-mail.";
-  else if (!EMAIL_RE.test(v.email.trim())) errors.email = "Cette adresse e-mail n'est pas valide (ex. nom@labo.fr).";
+  errors.email = emailError(v.email);
   if (!v.password) errors.password = "Saisissez votre mot de passe.";
   else if (mode === "register" && v.password.length < MIN_PASSWORD)
     errors.password = `Choisissez au moins ${MIN_PASSWORD} caractères.`;
+  if (!errors.email) delete errors.email;
   return errors;
 }
 
@@ -41,8 +51,10 @@ const TABS: { id: AuthMode; label: string }[] = [
 ];
 
 export function AuthCard() {
+  const router = useRouter();
   const uid = useId();
   const [mode, setMode] = useState<AuthMode>("login");
+  const [forgotOpen, setForgotOpen] = useState(false);
   const [values, setValues] = useState({ name: "", email: "", password: "" });
   const [remember, setRemember] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -50,9 +62,38 @@ export function AuthCard() {
   const [submitted, setSubmitted] = useState(false);
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState<{ tone: "info" | "error"; text: string } | null>(null);
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const [providers, setProviders] = useState<OAuthProvider[]>([]);
+  const [redirecting, setRedirecting] = useState<OAuthProvider | null>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const fieldRefs = useRef<Partial<Record<Field, HTMLInputElement | null>>>({});
+
+  // Déjà connecté (cookie de session valide) : on l'affiche au lieu du formulaire.
+  useEffect(() => {
+    let cancelled = false;
+    getCurrentUser().then((current) => {
+      // Déjà connecté : direction l'espace de travail.
+      if (!cancelled && current) router.replace("/");
+    });
+    // Fournisseurs OAuth disponibles, et éventuelle erreur au retour de Google / GitHub.
+    getOAuthProviders().then((list) => {
+      if (cancelled) return;
+      setProviders(list);
+      const oauthError = consumeOAuthError();
+      if (oauthError) setNotice({ tone: "error", text: oauthError });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  // Retour arrière depuis Google/GitHub : la page sort du cache (bfcache) avec les boutons bloqués.
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setRedirecting(null);
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
   function switchMode(next: AuthMode) {
     setMode(next);
@@ -94,39 +135,43 @@ export function AuthCard() {
       remember,
     });
     setPending(false);
-    if (result.ok) setUser(result.user);
+    if (result.ok) router.replace("/");
     else setNotice({ tone: "error", text: result.error });
   }
 
-  function comingSoon(what: string) {
-    setNotice({ tone: "info", text: `${what} n'est pas encore disponible. Utilisez votre e-mail pour l'instant.` });
+  function continueWith(provider: OAuthProvider) {
+    if (!providers.includes(provider)) {
+      setNotice({
+        tone: "info",
+        text: `La connexion avec ${OAUTH_LABELS[provider]} n'est pas configurée sur ce serveur. Utilisez votre e-mail.`,
+      });
+      return;
+    }
+    setNotice(null);
+    setRedirecting(provider);
+    window.location.assign(oauthStartUrl(provider, remember));
   }
 
-  if (user) {
+  function openForgot() {
+    setForgotOpen(true);
+    setNotice(null);
+    setErrors({});
+  }
+
+  function closeForgot() {
+    setForgotOpen(false);
+    setNotice(null);
+    setErrors({});
+  }
+
+  if (forgotOpen) {
     return (
       <CardShell>
-        <div className="flex flex-col items-start gap-4 py-6" role="status">
-          <CheckCircleIcon className="text-[2rem] text-accent" />
-          <div>
-            <h2 className="text-xl font-semibold tracking-[-0.02em] text-ink">
-              {mode === "register" ? "Compte créé" : "Vous êtes connecté"}
-            </h2>
-            <p className="mt-1.5 text-sm text-muted">
-              Bienvenue {user.name}. L&apos;espace de travail du copilote arrive dans la prochaine étape.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setUser(null);
-              setValues((v) => ({ ...v, password: "" }));
-              setSubmitted(false);
-            }}
-            className="text-sm font-medium text-accent underline-offset-4 hover:underline"
-          >
-            Revenir au formulaire
-          </button>
-        </div>
+        <ForgotPasswordForm
+          initialEmail={values.email}
+          onEmailChange={(email) => setValues((v) => ({ ...v, email }))}
+          onBack={closeForgot}
+        />
       </CardShell>
     );
   }
@@ -155,7 +200,7 @@ export function AuthCard() {
               onKeyDown={(e) => onTabKey(e, i)}
               className={`rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-200 ${
                 selected
-                  ? "bg-surface text-ink shadow-[0_1px_2px_var(--shadow),0_2px_8px_-4px_var(--shadow)]"
+                  ? "bg-accent text-accent-ink shadow-[0_4px_12px_-6px_var(--accent)]"
                   : "text-muted hover:text-ink"
               }`}
             >
@@ -165,14 +210,14 @@ export function AuthCard() {
         })}
       </div>
 
-      <div role="tabpanel" id={panelId} aria-labelledby={`${uid}-tab-${mode}`} className="mt-7">
-        <h2 className="text-[1.6rem] font-semibold leading-tight tracking-[-0.03em] text-balance text-ink">
-          {isRegister ? "Créez votre espace" : "Bon retour parmi nous"}
-        </h2>
-        <p className="mt-2 text-sm leading-relaxed text-muted">
+      <div role="tabpanel" id={panelId} aria-labelledby={`${uid}-tab-${mode}`} className="mt-9">
+        <h1 className="font-serif text-[2.1rem] font-medium leading-[1.1] tracking-[-0.015em] text-balance text-ink">
+          {isRegister ? "Créez votre espace de modélisation" : "Reprenez vos modèles"}
+        </h1>
+        <p className="mt-3 text-[0.95rem] leading-relaxed text-muted">
           {isRegister
-            ? "Un compte pour retrouver vos projets GAMA et l'historique de vos échanges avec le copilote."
-            : "Connectez-vous pour reprendre vos modèles là où vous les avez laissés."}
+            ? "Vos projets GAMA et vos échanges avec le copilote seront enregistrés dans ce compte."
+            : "Vos projets GAMA et vos échanges avec le copilote vous attendent là où vous les avez laissés."}
         </p>
 
         <form noValidate onSubmit={onSubmit} className="mt-7 flex flex-col gap-5">
@@ -220,17 +265,7 @@ export function AuthCard() {
             inputRef={(el) => {
               fieldRefs.current.password = el;
             }}
-            trailing={
-              <button
-                type="button"
-                onClick={() => setShowPassword((s) => !s)}
-                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                aria-pressed={showPassword}
-                className="grid size-9 place-items-center rounded-lg text-[1.1rem] text-muted transition-colors hover:text-ink"
-              >
-                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-              </button>
-            }
+            trailing={<PasswordVisibilityButton visible={showPassword} onToggle={() => setShowPassword((s) => !s)} />}
           />
 
           {!isRegister && (
@@ -240,13 +275,13 @@ export function AuthCard() {
                   type="checkbox"
                   checked={remember}
                   onChange={(e) => setRemember(e.target.checked)}
-                  className="size-4 rounded border-line-strong"
+                  className="size-4 rounded border-field"
                 />
                 Se souvenir de moi
               </label>
               <button
                 type="button"
-                onClick={() => comingSoon("La réinitialisation du mot de passe")}
+                onClick={openForgot}
                 className="font-medium text-accent underline-offset-4 hover:underline"
               >
                 Mot de passe oublié ?
@@ -254,35 +289,16 @@ export function AuthCard() {
             </div>
           )}
 
-          {notice && (
-            <p
-              role={notice.tone === "error" ? "alert" : "status"}
-              className={`flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm ${
-                notice.tone === "error" ? "bg-danger-soft text-danger" : "bg-sunken text-muted"
-              }`}
-            >
-              <InfoIcon className="mt-0.5 shrink-0" />
-              {notice.text}
-            </p>
-          )}
+          {notice && <Notice tone={notice.tone}>{notice.text}</Notice>}
 
-          <button
+          <PrimaryButton
             type="submit"
-            disabled={pending}
-            aria-busy={pending}
-            className="group mt-1 inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[linear-gradient(180deg,var(--accent),var(--accent-strong))] px-5 text-[0.95rem] font-semibold text-accent-ink shadow-[0_8px_20px_-10px_var(--accent-strong)] transition-[filter,transform,box-shadow] duration-200 hover:brightness-[1.06] active:translate-y-px disabled:cursor-wait disabled:opacity-80"
+            className="mt-1"
+            pending={pending}
+            pendingLabel={isRegister ? "Création du compte…" : "Connexion…"}
           >
-            {pending ? (
-              <>
-                <SpinnerIcon /> {isRegister ? "Création du compte…" : "Connexion…"}
-              </>
-            ) : (
-              <>
-                {isRegister ? "Créer mon compte" : "Se connecter"}
-                <ArrowRightIcon className="transition-transform duration-200 group-hover:translate-x-0.5" />
-              </>
-            )}
-          </button>
+            {isRegister ? "Créer mon compte" : "Se connecter"}
+          </PrimaryButton>
         </form>
 
         <div className="my-6 flex items-center gap-3 text-xs text-muted" aria-hidden="true">
@@ -292,94 +308,166 @@ export function AuthCard() {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <OAuthButton icon={<GoogleIcon />} label="Google" onClick={() => comingSoon("La connexion avec Google")} />
-          <OAuthButton icon={<GithubIcon />} label="GitHub" onClick={() => comingSoon("La connexion avec GitHub")} />
+          <OAuthButton
+            icon={<GoogleIcon />}
+            label="Google"
+            pending={redirecting === "google"}
+            disabled={redirecting !== null}
+            onClick={() => continueWith("google")}
+          />
+          <OAuthButton
+            icon={<GithubIcon />}
+            label="GitHub"
+            pending={redirecting === "github"}
+            disabled={redirecting !== null}
+            onClick={() => continueWith("github")}
+          />
         </div>
-
-        {AUTH_IS_MOCK && (
-          <p className="mt-6 flex items-start gap-2 text-xs leading-relaxed text-muted">
-            <InfoIcon className="mt-px shrink-0" />
-            Mode démonstration : l&apos;authentification n&apos;est pas encore reliée à l&apos;API GAMA-Copilot.
-          </p>
-        )}
       </div>
     </CardShell>
   );
 }
 
-function CardShell({ children }: { children: ReactNode }) {
-  return (
-    <section
-      aria-label="Accès à GAMA-Copilot"
-      className="rounded-[1.4rem] border border-line bg-surface p-6 shadow-[0_1px_2px_var(--shadow),0_24px_60px_-30px_var(--shadow)] sm:p-8"
+function ForgotPasswordForm({
+  initialEmail,
+  onEmailChange,
+  onBack,
+}: {
+  initialEmail: string;
+  onEmailChange: (email: string) => void;
+  onBack: () => void;
+}) {
+  const uid = useId();
+  const [email, setEmail] = useState(initialEmail);
+  const [error, setError] = useState<string | undefined>();
+  const [pending, setPending] = useState(false);
+  const [notice, setNotice] = useState<{ tone: "info" | "error"; text: string } | null>(null);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const emailRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    emailRef.current?.focus();
+  }, []);
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const invalid = emailError(email);
+    setError(invalid);
+    setNotice(null);
+    if (invalid) {
+      emailRef.current?.focus();
+      return;
+    }
+    setPending(true);
+    const result = await requestPasswordReset(email.trim());
+    setPending(false);
+    if (result.ok) setSentTo(email.trim());
+    else setNotice({ tone: "error", text: result.error });
+  }
+
+  const backButton = (
+    <button
+      type="button"
+      onClick={onBack}
+      className="text-sm font-medium text-accent underline-offset-4 hover:underline"
     >
-      {children}
-    </section>
+      Retour à la connexion
+    </button>
   );
-}
 
-interface TextFieldProps {
-  id: string;
-  label: string;
-  icon: ReactNode;
-  value: string;
-  onChange: (value: string) => void;
-  inputRef: (el: HTMLInputElement | null) => void;
-  error?: string;
-  hint?: string;
-  type?: string;
-  placeholder?: string;
-  autoComplete?: string;
-  inputMode?: "email" | "text";
-  trailing?: ReactNode;
-}
-
-function TextField({ id, label, icon, value, onChange, inputRef, error, hint, trailing, ...rest }: TextFieldProps) {
-  const describedBy = error ? `${id}-error` : hint ? `${id}-hint` : undefined;
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-ink">
-        {label}
-      </label>
-      <div
-        className={`flex h-12 items-center gap-2.5 rounded-xl border bg-canvas pl-3.5 pr-1.5 transition-[border-color,box-shadow] duration-150 focus-within:shadow-[0_0_0_3px_var(--ring)] ${
-          error ? "border-danger focus-within:border-danger" : "border-line hover:border-line-strong focus-within:border-accent"
-        }`}
-      >
-        <span className={`text-[1.1rem] ${error ? "text-danger" : "text-muted"}`}>{icon}</span>
-        <input
-          id={id}
-          ref={inputRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={describedBy}
-          className="h-full min-w-0 flex-1 bg-transparent text-[0.95rem] text-ink outline-none placeholder:text-placeholder"
-          {...rest}
-        />
-        {trailing}
+  if (sentTo) {
+    return (
+      <div className="flex flex-col items-start gap-4" role="status">
+        <MailIcon className="text-[2rem] text-accent" />
+        <div>
+          <h1 className="font-serif text-[1.9rem] font-medium leading-tight text-ink">Vérifiez votre boîte mail</h1>
+          <p className="mt-2 text-[0.95rem] leading-relaxed text-muted">
+            Si un compte existe pour <span className="font-medium text-ink">{sentTo}</span>, un lien pour choisir un
+            nouveau mot de passe vient de lui être envoyé. Ce lien expire au bout de quelques minutes et ne sert
+            qu&apos;une fois.
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-muted">
+            Rien reçu après quelques minutes ? Regardez dans les indésirables, ou{" "}
+            <button
+              type="button"
+              onClick={() => setSentTo(null)}
+              className="font-medium text-accent underline-offset-4 hover:underline"
+            >
+              renvoyez le lien
+            </button>
+            .
+          </p>
+        </div>
+        {backButton}
       </div>
-      {error ? (
-        <p id={`${id}-error`} className="text-[0.8rem] text-danger">
-          {error}
-        </p>
-      ) : hint ? (
-        <p id={`${id}-hint`} className="text-[0.8rem] text-muted">
-          {hint}
-        </p>
-      ) : null}
+    );
+  }
+
+  return (
+    <div>
+      <h1 className="font-serif text-[2.1rem] font-medium leading-[1.1] tracking-[-0.015em] text-balance text-ink">
+        Mot de passe oublié
+      </h1>
+      <p className="mt-3 text-[0.95rem] leading-relaxed text-muted">
+        Indiquez l&apos;adresse de votre compte : nous vous enverrons un lien pour choisir un nouveau mot de passe.
+      </p>
+      <form noValidate onSubmit={onSubmit} className="mt-7 flex flex-col gap-5">
+        <TextField
+          id={`${uid}-email`}
+          label="Adresse e-mail"
+          type="email"
+          icon={<MailIcon />}
+          autoComplete="email"
+          inputMode="email"
+          placeholder="nom@laboratoire.fr"
+          value={email}
+          error={error}
+          onChange={(v) => {
+            setEmail(v);
+            onEmailChange(v);
+            if (error) setError(emailError(v));
+          }}
+          inputRef={(el) => {
+            emailRef.current = el;
+          }}
+        />
+        {notice && <Notice tone={notice.tone}>{notice.text}</Notice>}
+        <PrimaryButton type="submit" pending={pending} pendingLabel="Envoi du lien…">
+          Envoyer le lien
+        </PrimaryButton>
+      </form>
+      <div className="mt-6">{backButton}</div>
     </div>
   );
 }
 
-function OAuthButton({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
+function CardShell({ children }: { children: ReactNode }) {
+  return <section aria-label="Accès à GAMA-Copilot">{children}</section>;
+}
+
+function OAuthButton({
+  icon,
+  label,
+  pending,
+  disabled,
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  pending: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-line bg-canvas text-sm font-medium text-ink transition-colors hover:border-line-strong hover:bg-sunken"
+      disabled={disabled}
+      aria-busy={pending}
+      aria-label={`Continuer avec ${label}`}
+      className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-line bg-surface text-sm font-medium text-ink transition-colors hover:border-line-strong hover:bg-sunken disabled:cursor-wait disabled:opacity-70"
     >
-      <span className="text-[1.05rem]">{icon}</span>
+      <span className="text-[1.05rem]">{pending ? <SpinnerIcon /> : icon}</span>
       {label}
     </button>
   );

@@ -1,70 +1,136 @@
 @import "tailwindcss";
 
-/* Palette : papier légèrement verdi, encre bleu-pétrole, accent émeraude (agents sains)
-   et accent chaud corail (agents infectés) — les deux couleurs d'une simulation. */
+/* Palette : bleu roi sur fond blanc lavande, dégradé marine → bleu pour l'action principale,
+   violet et cyan en couleurs secondaires (agents, logo). */
 :root {
   color-scheme: light;
-  --canvas: oklch(0.982 0.006 165);
+  --canvas: oklch(0.975 0.012 268);
   --surface: oklch(1 0 0);
-  --sunken: oklch(0.955 0.009 170);
-  --ink: oklch(0.24 0.025 210);
-  --muted: oklch(0.47 0.022 205);
-  --placeholder: oklch(0.56 0.018 205);
-  --line: oklch(0.905 0.012 175);
-  --line-strong: oklch(0.82 0.016 180);
-  --accent: oklch(0.56 0.12 168);
-  --accent-strong: oklch(0.47 0.11 172);
-  --accent-ink: oklch(0.99 0.01 165);
-  --accent-soft: oklch(0.94 0.04 168);
-  --warm: oklch(0.66 0.16 42);
+  --sunken: oklch(0.955 0.018 266);
+  --ink: oklch(0.2 0.045 268);
+  --muted: oklch(0.46 0.035 266);
+  --placeholder: oklch(0.54 0.028 266);
+  --line: oklch(0.91 0.02 266);
+  --line-strong: oklch(0.83 0.035 266);
+  --field: oklch(0.64 0.035 266);
+  --accent: oklch(0.53 0.22 262);
+  --accent-strong: oklch(0.36 0.14 266);
+  --accent-ink: oklch(1 0 0);
+  --accent-soft: oklch(0.94 0.04 264);
+  --btn-from: oklch(0.36 0.14 266);
+  --btn-to: oklch(0.54 0.2 256);
+  --violet: oklch(0.57 0.2 295);
+  --violet-text: oklch(0.5 0.21 295);
+  --cyan: oklch(0.76 0.13 205);
   --danger: oklch(0.52 0.19 27);
   --danger-soft: oklch(0.96 0.03 27);
-  --ring: oklch(0.56 0.12 168 / 0.22);
-  --shadow: oklch(0.3 0.04 210 / 0.16);
+  --ring: oklch(0.53 0.22 262 / 0.2);
+  --shadow: oklch(0.35 0.1 266 / 0.16);
+  --wash-1: oklch(0.72 0.14 262 / 0.22);
+  --wash-2: oklch(0.8 0.1 290 / 0.16);
+  /* Statuts (toujours accompagnés d'une icône et d'un libellé) */
+  --success: oklch(0.52 0.13 150);
+  --success-soft: oklch(0.95 0.04 150);
+  --warning: oklch(0.52 0.13 60);
+  --warning-soft: oklch(0.96 0.04 75);
+  /* Séries de données (espèces) : ordre fixe, validé daltonisme + contraste */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1aa6b8;
+  --series-4: #6250d6;
+  --series-5: #eda100;
+  --series-6: #e87ba4;
+  --series-other: oklch(0.7 0.02 266);
+  /* Panneau de démonstration : marine dans les deux thèmes. */
+  --panel-from: #0b1747;
+  --panel-to: #15307c;
+  --panel-deep: #0a1440;
+  --panel-ink: #eef2ff;
+  --panel-muted: #b3c0ea;
+  --panel-line: rgba(179, 192, 234, 0.14);
+  --sim-s: #8fb0ff;
+  --sim-i: #c39bff;
+  --sim-r: #2fd8e3;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --canvas: oklch(0.175 0.016 215);
-    --surface: oklch(0.215 0.018 212);
-    --sunken: oklch(0.255 0.02 210);
-    --ink: oklch(0.95 0.01 170);
-    --muted: oklch(0.74 0.02 195);
-    --placeholder: oklch(0.64 0.018 195);
-    --line: oklch(0.3 0.02 205);
-    --line-strong: oklch(0.4 0.022 200);
-    --accent: oklch(0.79 0.13 166);
-    --accent-strong: oklch(0.71 0.13 168);
-    --accent-ink: oklch(0.18 0.03 190);
-    --accent-soft: oklch(0.3 0.05 172);
-    --warm: oklch(0.76 0.15 48);
+    --canvas: oklch(0.165 0.03 268);
+    --surface: oklch(0.21 0.036 268);
+    --sunken: oklch(0.25 0.04 268);
+    --ink: oklch(0.95 0.012 266);
+    --muted: oklch(0.75 0.03 266);
+    --placeholder: oklch(0.65 0.03 266);
+    --line: oklch(0.31 0.035 268);
+    --line-strong: oklch(0.41 0.04 268);
+    --field: oklch(0.53 0.04 266);
+    --accent: oklch(0.73 0.15 258);
+    --accent-strong: oklch(0.6 0.19 260);
+    --accent-ink: oklch(0.17 0.04 268);
+    --accent-soft: oklch(0.31 0.08 264);
+    --btn-from: oklch(0.42 0.17 266);
+    --btn-to: oklch(0.54 0.2 256);
+    --violet: oklch(0.72 0.16 295);
+    --violet-text: oklch(0.76 0.14 295);
+    --cyan: oklch(0.8 0.12 205);
     --danger: oklch(0.74 0.15 25);
     --danger-soft: oklch(0.3 0.06 25);
-    --ring: oklch(0.79 0.13 166 / 0.25);
-    --shadow: oklch(0.05 0.01 210 / 0.6);
+    --ring: oklch(0.73 0.15 258 / 0.25);
+    --shadow: oklch(0.05 0.02 268 / 0.6);
+    --wash-1: oklch(0.5 0.18 262 / 0.22);
+    --wash-2: oklch(0.45 0.16 295 / 0.16);
+    --success: oklch(0.78 0.14 150);
+    --success-soft: oklch(0.3 0.06 150);
+    --warning: oklch(0.8 0.13 75);
+    --warning-soft: oklch(0.32 0.06 70);
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #1597a8;
+    --series-4: #9085e9;
+    --series-5: #c98500;
+    --series-6: #d55181;
+    --series-other: oklch(0.5 0.02 266);
   }
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --canvas: oklch(0.175 0.016 215);
-  --surface: oklch(0.215 0.018 212);
-  --sunken: oklch(0.255 0.02 210);
-  --ink: oklch(0.95 0.01 170);
-  --muted: oklch(0.74 0.02 195);
-  --placeholder: oklch(0.64 0.018 195);
-  --line: oklch(0.3 0.02 205);
-  --line-strong: oklch(0.4 0.022 200);
-  --accent: oklch(0.79 0.13 166);
-  --accent-strong: oklch(0.71 0.13 168);
-  --accent-ink: oklch(0.18 0.03 190);
-  --accent-soft: oklch(0.3 0.05 172);
-  --warm: oklch(0.76 0.15 48);
+  --canvas: oklch(0.165 0.03 268);
+  --surface: oklch(0.21 0.036 268);
+  --sunken: oklch(0.25 0.04 268);
+  --ink: oklch(0.95 0.012 266);
+  --muted: oklch(0.75 0.03 266);
+  --placeholder: oklch(0.65 0.03 266);
+  --line: oklch(0.31 0.035 268);
+  --line-strong: oklch(0.41 0.04 268);
+  --field: oklch(0.53 0.04 266);
+  --accent: oklch(0.73 0.15 258);
+  --accent-strong: oklch(0.6 0.19 260);
+  --accent-ink: oklch(0.17 0.04 268);
+  --accent-soft: oklch(0.31 0.08 264);
+  --btn-from: oklch(0.42 0.17 266);
+  --btn-to: oklch(0.54 0.2 256);
+  --violet: oklch(0.72 0.16 295);
+  --violet-text: oklch(0.76 0.14 295);
+  --cyan: oklch(0.8 0.12 205);
   --danger: oklch(0.74 0.15 25);
   --danger-soft: oklch(0.3 0.06 25);
-  --ring: oklch(0.79 0.13 166 / 0.25);
-  --shadow: oklch(0.05 0.01 210 / 0.6);
+  --ring: oklch(0.73 0.15 258 / 0.25);
+  --shadow: oklch(0.05 0.02 268 / 0.6);
+  --wash-1: oklch(0.5 0.18 262 / 0.22);
+  --wash-2: oklch(0.45 0.16 295 / 0.16);
+  --success: oklch(0.78 0.14 150);
+  --success-soft: oklch(0.3 0.06 150);
+  --warning: oklch(0.8 0.13 75);
+  --warning-soft: oklch(0.32 0.06 70);
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #1597a8;
+  --series-4: #9085e9;
+  --series-5: #c98500;
+  --series-6: #d55181;
+  --series-other: oklch(0.5 0.02 266);
 }
 
 @theme inline {
@@ -80,10 +146,25 @@
   --color-accent-strong: var(--accent-strong);
   --color-accent-ink: var(--accent-ink);
   --color-accent-soft: var(--accent-soft);
-  --color-warm: var(--warm);
+  --color-violet: var(--violet);
+  --color-violet-text: var(--violet-text);
+  --color-cyan: var(--cyan);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-panel-deep: var(--panel-deep);
+  --color-panel-ink: var(--panel-ink);
+  --color-panel-muted: var(--panel-muted);
+  --color-panel-line: var(--panel-line);
+  --color-sim-s: var(--sim-s);
+  --color-sim-i: var(--sim-i);
+  --color-sim-r: var(--sim-r);
+  --color-field: var(--field);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-hanken);
+  --font-serif: var(--font-literata);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -92,9 +173,13 @@ html {
 }
 
 body {
-  background: var(--canvas);
+  background:
+    radial-gradient(55% 45% at 88% 12%, var(--wash-1), transparent 70%),
+    radial-gradient(45% 40% at 4% 96%, var(--wash-2), transparent 70%),
+    var(--canvas);
+  background-attachment: fixed;
   color: var(--ink);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
   caret-color: var(--accent);
   accent-color: var(--accent-strong);
   transition: background-color 0.25s ease, color 0.25s ease;
@@ -112,7 +197,8 @@ body {
 }
 
 /* La bordure du champ porte déjà le focus. */
-input:focus-visible {
+input:focus-visible,
+textarea:focus-visible {
   outline: none;
 }
 
@@ -126,38 +212,7 @@ input:focus-visible {
   display: block;
 }
 
-/* Dérive lente des agents de la simulation */
-@keyframes sim-drift-1 {
-  to {
-    transform: translate(14px, -10px);
-  }
-}
-@keyframes sim-drift-2 {
-  to {
-    transform: translate(-12px, 12px);
-  }
-}
-@keyframes sim-drift-3 {
-  to {
-    transform: translate(10px, 9px);
-  }
-}
-.sim-drift-1 {
-  animation: sim-drift-1 7s cubic-bezier(0.16, 1, 0.3, 1) infinite alternate;
-}
-.sim-drift-2 {
-  animation: sim-drift-2 9s cubic-bezier(0.16, 1, 0.3, 1) infinite alternate;
-}
-.sim-drift-3 {
-  animation: sim-drift-3 11s cubic-bezier(0.16, 1, 0.3, 1) infinite alternate;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .sim-drift-1,
-  .sim-drift-2,
-  .sim-drift-3 {
-    animation: none;
-  }
   body {
     transition: none;
   }

@@ -38,6 +38,7 @@ Confirmed, implemented in the API:
 - `POST /agent`: autonomous agent (ReAct + tools: doc search, GAML generation/validation, project and file operations).
 - `GET /ai/generate`: GAML generation; `GET /ai/chat`, `GET /ai`: chat and documentation Q&A.
 - `POST /project`, `/project/structure`, `/project/file`, `/project/file/update`, `GET /project/file`: project and file management in a server-side workspace.
+- Accounts (MySQL + TypeORM): `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/logout-all`, `GET /auth/me`. JWTs live only in httpOnly cookies backed by server-side sessions; every other API route requires a signed-in user.
 
 Constraints:
 
@@ -47,7 +48,6 @@ Constraints:
 
 Open decisions (not yet decided, do not invent):
 
-- Authentication is required by the deployment model but **not implemented** in the API yet (no `/auth/*` routes; the front currently mocks it, see `lib/auth.ts`).
 - Whether Google / GitHub sign-in and password reset will exist.
 - How users get their generated projects from the shared server into their GAMA desktop (download, sync, shared folder…).
 - Per-user isolation of workspaces and conversation history.
